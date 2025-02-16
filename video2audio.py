@@ -54,8 +54,8 @@ def saveMedia(fileName, content, mediaType, folderName):
     print(f"保存{mediaType}成功！")
 
 """将mp3文件转换为m4a文件"""
-def convert_mp3_to_m4a(mp3_file, m4a_file, bbp):
-    command = ['ffmpeg', '-i', mp3_file, '-c:a', 'aac', '-b:a', bbp, m4a_file]
+def convert_mp3_to_m4a(mp3_file, m4a_file, bitrate):
+    command = ['ffmpeg', '-i', mp3_file, '-c:a', 'aac', '-b:a', bitrate, m4a_file]
     subprocess.call(command)
     print(f"转换mp3文件为m4a文件成功！")
 
