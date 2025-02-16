@@ -5,6 +5,7 @@ import json
 import re
 import os
 import subprocess
+from mutagen.mp4 import MP4, MP4Cover
 from pprint import pprint 
 
 """获取url响应体"""
@@ -54,10 +55,20 @@ def saveMedia(fileName, content, mediaType, folderName):
     print(f"保存{mediaType}成功！")
 
 """将mp3文件转换为m4a文件"""
-def convert_mp3_to_m4a(mp3_file, m4a_file, bitrate):
+def convert_mp3_to_m4a(mp3_file, m4a_file, album_name, author_name, cover_img, bitrate):
     command = ['ffmpeg', '-i', mp3_file, '-c:a', 'aac', '-b:a', bitrate, m4a_file]
     subprocess.call(command)
     print(f"转换mp3文件为m4a文件成功！")
+
+    # 添加专辑名字，作者，和封面信息到m4a
+    m4a = MP4(m4a_file)
+    m4a["©alb"] = album_name
+    m4a["©ART"] = author_name
+    with open(cover_img, "rb") as f:
+        cover_data = f.read()
+        m4a["covr"] = [MP4Cover(cover_data, MP4Cover.FORMAT_JPEG)]
+    m4a.save()
+    print("M4A 元数据写入成功！")
 
 def extract_bv_id(url):
     """
@@ -88,7 +99,9 @@ def get_cover_image(bv_id, folderName):
             print(f"封面图URL: {cover_url}")
             
             # 下载封面图
-            download_image(cover_url, bv_id, folderName)
+            file_path = download_image(cover_url, bv_id, folderName)
+            author_name = data['data']['owner']['name']
+            return file_path, author_name
         else:
             print("无法获取视频信息，请检查BV号是否正确！")
     except Exception as e:
@@ -107,10 +120,11 @@ def download_image(url, bv_id, folderName):
         response.raise_for_status()
         
         # 保存图片到本地
-        file_path = f"bilibili/{folderName}/{bv_id}.jpg"
+        file_path = f"bilibili/{folderName}/{bv_id}.JPEG"
         with open(file_path, "wb") as f:
             f.write(response.content)
         print(f"封面图已保存到: {file_path}")
+        return file_path
     except Exception as e:
         print(f"下载封面图失败: {e}")
 
@@ -121,17 +135,21 @@ def main():
     fileName = videoInfo['videoTitle']
     # 提取BV号
     bv_id = extract_bv_id(url)
+
     # 创建文件夹
     folderName = re.sub(r'[\\/*?:"<>|]', "", fileName) # 去除标题中的非法字符
+
+    # 下载封面
+    cover_img_path, author_name = get_cover_image(bv_id, folderName)
+
     # 下载并保存音频
     audioContent = getResponse(videoInfo['audioUrl']).content
     saveMedia(fileName, audioContent, 'mp3', folderName)
+
     # 转换音频格式
     mp3_file = f'bilibili/{folderName}/{fileName}.mp3'
     m4a_file = f'bilibili/{folderName}/{fileName}.m4a'
-    convert_mp3_to_m4a(mp3_file, m4a_file, '192k')
-    # 下载封面
-    get_cover_image(bv_id, folderName)
+    convert_mp3_to_m4a(mp3_file, m4a_file, folderName, author_name, cover_img_path, '192k')
 
 if __name__ == '__main__':
     main()
